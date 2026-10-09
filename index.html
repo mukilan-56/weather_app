@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Weather Monitoring System</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #071b35, #123e67, #167d9a);
+      color: white;
+      padding: 25px;
+    }
+
+    .container {
+      max-width: 950px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin: 25px 0 35px;
+    }
+
+    header h1 {
+      font-size: 30px;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      color: #c7e8f5;
+    }
+
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #b9e8d2;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
+      padding: 25px;
+      text-align: center;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .icon {
+      font-size: 42px;
+      margin-bottom: 15px;
+    }
+
+    .card h2 {
+      font-size: 17px;
+      font-weight: normal;
+      color: #d3efff;
+      margin-bottom: 12px;
+    }
+
+    .value {
+      font-size: 35px;
+      font-weight: bold;
+    }
+
+    .unit {
+      font-size: 18px;
+    }
+
+    .panel {
+      margin-top: 25px;
+      padding: 22px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .panel h2 {
+      margin-bottom: 12px;
+    }
+
+    .panel p {
+      color: #d3efff;
+      line-height: 1.8;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 11px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #45d6c5;
+      color: #08263a;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #8af1e5;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #c7e8f5;
+      font-size: 13px;
+    }
+
+    @media (max-width: 500px) {
+      body {
+        padding: 15px;
+      }
+
+      header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <header>
+      <h1>🌦️ IoT Weather Monitoring</h1>
+      <p>Real-Time Environmental Monitoring Dashboard</p>
+      <div class="status" id="status">Connecting to Firebase...</div>
+    </header>
+
+    <div class="grid">
+
+      <div class="card">
+        <div class="icon">🌡️</div>
+        <h2>Temperature</h2>
+        <div class="value">
+          <span id="temperature">--</span><span class="unit"> °C</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon">💧</div>
+        <h2>Humidity</h2>
+        <div class="value">
+          <span id="humidity">--</span><span class="unit"> %</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon">🌬️</div>
+        <h2>Air Pressure</h2>
+        <div class="value">
+          <span id="pressure">--</span><span class="unit"> hPa</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon">☀️</div>
+        <h2>Light Intensity</h2>
+        <div class="value">
+          <span id="light">--</span><span class="unit"> lux</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="panel">
+      <h2>📡 Sensor Information</h2>
+      <p>Connection: <span id="connection">Waiting for data</span></p>
+      <p>Last Update: <span id="lastUpdate">--</span></p>
+      <p>Weather Condition: <span id="condition">Unknown</span></p>
+      <button id="refreshBtn">Refresh Data</button>
+    </div>
+
+    <footer>
+      IoT Weather Monitoring System | Powered by Firebase
+    </footer>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+    import {
+      getDatabase,
+      ref,
+      onValue,
+      get
+    } from
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDUn68-1MiIUoR-XC0WNWxVPb3xER-ezs",
+      authDomain: "iot-weather-application-5f7d4.firebaseapp.com",
+      projectId: "iot-weather-application-5f7d4",
+      storageBucket: "iot-weather-application-5f7d4.firebasestorage.app",
+      messagingSenderId: "88968472378",
+      appId: "1:88968472378:web:31c33d7a10d613abcb5203",
+      measurementId: "G-GNHVW67Y1K"
+    };
+
+    const status = document.getElementById("status");
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+
+      // Change "weather" to match your database path.
+      const weatherRef = ref(db, "weather");
+
+      function showValue(id, value) {
+        document.getElementById(id).textContent =
+          value !== undefined && value !== null ? value : "--";
+      }
+
+      function displayWeather(data) {
+        if (!data || typeof data !== "object") {
+          document.getElementById("connection").textContent =
+            "No sensor data found";
+          return;
+        }
+
+        showValue("temperature", data.temperature);
+        showValue("humidity", data.humidity);
+        showValue("pressure", data.pressure);
+        showValue("light", data.light);
+
+        document.getElementById("lastUpdate").textContent =
+          data.timestamp
+            ? new Date(data.timestamp).toLocaleString()
+            : new Date().toLocaleString();
+
+        let condition = "Normal";
+
+        if (Number(data.temperature) >= 35) {
+          condition = "Hot";
+        } else if (Number(data.temperature) <= 15) {
+          condition = "Cold";
+        } else if (Number(data.humidity) >= 80) {
+          condition = "Humid";
+        }
+
+        document.getElementById("condition").textContent = condition;
+        document.getElementById("connection").textContent =
+          "Connected — sensor data received";
+      }
+
+      onValue(weatherRef, (snapshot) => {
+        displayWeather(snapshot.val());
+        status.textContent = "🟢 Firebase connected";
+      }, (error) => {
+        status.textContent = "🔴 Database access failed";
+        document.getElementById("connection").textContent = error.message;
+        console.error(error);
+      });
+
+      document.getElementById("refreshBtn").addEventListener(
+        "click",
+        async () => {
+          try {
+            const snapshot = await get(weatherRef);
+            displayWeather(snapshot.val());
+          } catch (error) {
+            document.getElementById("connection").textContent =
+              "Unable to refresh: " + error.message;
+          }
+        }
+      );
+
+    } catch (error) {
+      status.textContent = "🔴 Firebase initialization failed";
+      console.error(error);
+    }
+  </script>
+</body>
+</html>
