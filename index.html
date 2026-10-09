@@ -15,14 +15,14 @@
     body {
       font-family: Arial, sans-serif;
       min-height: 100vh;
-      background: linear-gradient(135deg, #071b35, #123e67, #167d9a);
-      color: white;
       padding: 25px;
+      color: white;
+      background: linear-gradient(135deg, #071b35, #123e67, #167d9a);
     }
 
     .container {
-      max-width: 950px;
-      margin: 0 auto;
+      max-width: 1000px;
+      margin: auto;
     }
 
     header {
@@ -39,25 +39,25 @@
       color: #c7e8f5;
     }
 
-    .status {
+    #status {
       margin-top: 15px;
       font-size: 14px;
-      color: #b9e8d2;
+      overflow-wrap: anywhere;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 20px;
     }
 
     .card {
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
       border-radius: 18px;
       padding: 25px;
       text-align: center;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 8px 25px rgba(0,0,0,.15);
     }
 
     .icon {
@@ -75,6 +75,7 @@
     .value {
       font-size: 35px;
       font-weight: bold;
+      overflow-wrap: anywhere;
     }
 
     .unit {
@@ -85,7 +86,7 @@
       margin-top: 25px;
       padding: 22px;
       border-radius: 16px;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255,255,255,.1);
     }
 
     .panel h2 {
@@ -94,12 +95,13 @@
 
     .panel p {
       color: #d3efff;
-      line-height: 1.8;
+      line-height: 1.9;
+      overflow-wrap: anywhere;
     }
 
     button {
       margin-top: 15px;
-      padding: 11px 20px;
+      padding: 12px 22px;
       border: none;
       border-radius: 8px;
       background: #45d6c5;
@@ -110,6 +112,11 @@
 
     button:hover {
       background: #8af1e5;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
     }
 
     footer {
@@ -137,11 +144,10 @@
     <header>
       <h1>🌦️ IoT Weather Monitoring</h1>
       <p>Real-Time Environmental Monitoring Dashboard</p>
-      <div class="status" id="status">Connecting to Firebase...</div>
+      <div id="status">Initializing Firebase...</div>
     </header>
 
     <div class="grid">
-
       <div class="card">
         <div class="icon">🌡️</div>
         <h2>Temperature</h2>
@@ -173,15 +179,14 @@
           <span id="light">--</span><span class="unit"> lux</span>
         </div>
       </div>
-
     </div>
 
     <div class="panel">
       <h2>📡 Sensor Information</h2>
-      <p>Connection: <span id="connection">Waiting for data</span></p>
+      <p>Connection: <span id="connection">Waiting...</span></p>
       <p>Last Update: <span id="lastUpdate">--</span></p>
       <p>Weather Condition: <span id="condition">Unknown</span></p>
-      <button id="refreshBtn">Refresh Data</button>
+      <button id="refreshBtn" type="button">Refresh Data</button>
     </div>
 
     <footer>
@@ -202,9 +207,14 @@
     } from
       "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+    // Firebase project configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBDUn68-1MiIUoR-XC0WNWxVPb3xER-ezs",
       authDomain: "iot-weather-application-5f7d4.firebaseapp.com",
+
+      // Replace with the exact URL shown in Firebase Console
+      databaseURL: "YOUR_REALTIME_DATABASE_URL",
+
       projectId: "iot-weather-application-5f7d4",
       storageBucket: "iot-weather-application-5f7d4.firebasestorage.app",
       messagingSenderId: "88968472378",
@@ -212,78 +222,107 @@
       measurementId: "G-GNHVW67Y1K"
     };
 
-    const status = document.getElementById("status");
+    const $ = (id) => document.getElementById(id);
 
-    try {
-      const app = initializeApp(firebaseConfig);
-      const db = getDatabase(app);
+    function setStatus(message, color = "#c7e8f5") {
+      $("status").textContent = message;
+      $("status").style.color = color;
+    }
 
-      // Change "weather" to match your database path.
-      const weatherRef = ref(db, "weather");
-
-      function showValue(id, value) {
-        document.getElementById(id).textContent =
-          value !== undefined && value !== null ? value : "--";
+    function displayWeather(data) {
+      if (!data || typeof data !== "object") {
+        $("temperature").textContent = "--";
+        $("humidity").textContent = "--";
+        $("pressure").textContent = "--";
+        $("light").textContent = "--";
+        $("lastUpdate").textContent = "--";
+        $("condition").textContent = "Unknown";
+        $("connection").textContent = "No data found at /weather";
+        return;
       }
 
-      function displayWeather(data) {
-        if (!data || typeof data !== "object") {
-          document.getElementById("connection").textContent =
-            "No sensor data found";
-          return;
-        }
+      $("temperature").textContent = data.temperature ?? "--";
+      $("humidity").textContent = data.humidity ?? "--";
+      $("pressure").textContent = data.pressure ?? "--";
+      $("light").textContent = data.light ?? "--";
 
-        showValue("temperature", data.temperature);
-        showValue("humidity", data.humidity);
-        showValue("pressure", data.pressure);
-        showValue("light", data.light);
+      const timestamp = Number(data.timestamp);
 
-        document.getElementById("lastUpdate").textContent =
-          data.timestamp
-            ? new Date(data.timestamp).toLocaleString()
-            : new Date().toLocaleString();
+      $("lastUpdate").textContent =
+        data.timestamp != null && Number.isFinite(timestamp)
+          ? new Date(timestamp).toLocaleString()
+          : "Timestamp unavailable";
 
-        let condition = "Normal";
+      const temp = Number(data.temperature);
+      const humidity = Number(data.humidity);
+      let condition = "Normal";
 
-        if (Number(data.temperature) >= 35) {
-          condition = "Hot";
-        } else if (Number(data.temperature) <= 15) {
-          condition = "Cold";
-        } else if (Number(data.humidity) >= 80) {
-          condition = "Humid";
-        }
-
-        document.getElementById("condition").textContent = condition;
-        document.getElementById("connection").textContent =
-          "Connected — sensor data received";
+      if (data.temperature != null && temp >= 35) {
+        condition = "Hot";
+      } else if (data.temperature != null && temp <= 15) {
+        condition = "Cold";
+      } else if (data.humidity != null && humidity >= 80) {
+        condition = "Humid";
       }
 
-      onValue(weatherRef, (snapshot) => {
-        displayWeather(snapshot.val());
-        status.textContent = "🟢 Firebase connected";
-      }, (error) => {
-        status.textContent = "🔴 Database access failed";
-        document.getElementById("connection").textContent = error.message;
-        console.error(error);
-      });
+      $("condition").textContent = condition;
+      $("connection").textContent = "Connected — receiving sensor data";
+    }
 
-      document.getElementById("refreshBtn").addEventListener(
-        "click",
-        async () => {
+    async function startApp() {
+      if (
+        !firebaseConfig.databaseURL ||
+        firebaseConfig.databaseURL === "YOUR_REALTIME_DATABASE_URL"
+      ) {
+        setStatus(
+          "⚠️ Please configure your Realtime Database URL.",
+          "#ffd166"
+        );
+        $("connection").textContent = "Database URL is missing";
+        return;
+      }
+
+      try {
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const weatherRef = ref(database, "weather");
+
+        setStatus("Connecting to Firebase...", "#ffd166");
+
+        onValue(weatherRef, (snapshot) => {
+          displayWeather(snapshot.val());
+          setStatus("🟢 Firebase connected", "#8af1b5");
+        }, (error) => {
+          setStatus("🔴 Database access failed", "#ff9a9a");
+          $("connection").textContent = error.message;
+          console.error(error);
+        });
+
+        $("refreshBtn").addEventListener("click", async () => {
+          const button = $("refreshBtn");
+          button.disabled = true;
+          button.textContent = "Refreshing...";
+
           try {
             const snapshot = await get(weatherRef);
             displayWeather(snapshot.val());
           } catch (error) {
-            document.getElementById("connection").textContent =
-              "Unable to refresh: " + error.message;
+            $("connection").textContent =
+              "Refresh failed: " + error.message;
+          } finally {
+            button.disabled = false;
+            button.textContent = "Refresh Data";
           }
-        }
-      );
+        });
 
-    } catch (error) {
-      status.textContent = "🔴 Firebase initialization failed";
-      console.error(error);
+      } catch (error) {
+        setStatus("🔴 Firebase initialization failed", "#ff9a9a");
+        $("connection").textContent = error.message;
+        console.error(error);
+      }
     }
+
+    startApp();
   </script>
 </body>
 </html>
